@@ -15,6 +15,7 @@ mod metadata;
 mod receiver;
 mod resolver;
 mod storage_impl;
+mod users_impl;
 mod utils;
 
 pub use crate::core_impl::*;
@@ -22,10 +23,11 @@ pub use crate::metadata::*;
 pub use crate::receiver::*;
 pub use crate::resolver::*;
 pub use crate::storage_impl::*;
+pub use crate::users_impl::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue, StorageUsage,
 };
@@ -58,16 +60,22 @@ pub struct Contract {
 impl Contract {
     /// Initialize The Contract
     #[init]
-    pub fn new(owner_id: AccountId, total_supply: U128, metadata: FungibleTokenMetadata) -> Self {
+    pub fn new(
+        owner_id: ValidAccountId,
+        total_supply: U128,
+        metadata: FungibleTokenMetadata,
+    ) -> Self {
         require!(!env::state_exists(), "Already initialized");
         metadata.assert_valid_metadata();
+
+        let owner_id: AccountId = owner_id.into();
 
         let token = FungibleToken {
             accounts: LookupMap::new(StorageKey::Accounts.try_to_vec().unwrap()),
             total_supply: total_supply.into(),
         };
         let mut this = Self {
-            owner_id: owner_id.clone().into(),
+            owner_id: owner_id.clone(),
             token,
             account_storage_usage: 0,
             ft_metadata: LazyOption::new(
@@ -93,6 +101,17 @@ impl Contract {
     /// Transfer the Fungible Token from one A/c to another A/c
     #[payable]
     pub fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
+        require!(
+            self.token
+                .accounts
+                .contains_key(&env::predecessor_account_id()),
+            "Register for Catch A/c"
+        );
+
+        require!(
+            self.token.accounts.contains_key(&receiver_id),
+            "Register for Catch A/c"
+        );
         self.token.ft_transfer(receiver_id, amount, memo)
     }
 
@@ -105,18 +124,32 @@ impl Contract {
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<U128> {
+        require!(
+            self.token
+                .accounts
+                .contains_key(&env::predecessor_account_id()),
+            "Register for Catch A/c"
+        );
+
+        require!(
+            self.token.accounts.contains_key(&receiver_id),
+            "Register for Catch A/c"
+        );
+
         self.token.ft_transfer_call(receiver_id, amount, memo, msg)
     }
 
     /// Resolving Transaction after on_transfer is called on recieving contract
     ///
     /// Refunds and returns the unused tokens
+    /// Private fn
     pub fn ft_resolve_transfer(
         &mut self,
         sender_id: AccountId,
         receiver_id: AccountId,
         amount: U128,
     ) -> U128 {
+        // It is a Private Funciton and hence no need to check if the A/c is Catch A/c , It will always be valid
         self.token
             .ft_resolve_transfer(sender_id, receiver_id, amount)
     }
@@ -127,8 +160,8 @@ impl Contract {
     }
 
     /// Return Fungible Token balance of the given A/c
-    pub fn ft_balance_of(&self, account_id: AccountId) -> U128 {
-        self.token.ft_balance_of(account_id)
+    pub fn ft_balance_of(&self, account_id: ValidAccountId) -> U128 {
+        self.token.ft_balance_of(account_id.into())
     }
 
     /// Mint Fungible Token to the Owner A/c
@@ -157,6 +190,11 @@ impl Contract {
         feat: Option<String>,
     ) {
         self.assert_owner();
+        require!(
+            self.token.accounts.contains_key(&player_id),
+            "Register for Catch A/c"
+        );
+
         let amount: Balance = amount.into();
 
         require!(amount > 0, "The amount should be a positive number");
@@ -184,17 +222,17 @@ mod fungible_token_tests {
 
     // Helper functions
 
-    fn alice() -> AccountId {
-        AccountId::try_from("alice.near").unwrap()
+    fn alice() -> ValidAccountId {
+        ValidAccountId::try_from("alice.near").unwrap()
     }
-    fn bob() -> AccountId {
-        AccountId::try_from("bob.near").unwrap()
+    fn bob() -> ValidAccountId {
+        ValidAccountId::try_from("bob.near").unwrap()
     }
-    fn carol() -> AccountId {
-        AccountId::try_from("carol.near").unwrap()
+    fn carol() -> ValidAccountId {
+        ValidAccountId::try_from("carol.near").unwrap()
     }
-    fn dex() -> AccountId {
-        AccountId::try_from("dex.near").unwrap()
+    fn dex() -> ValidAccountId {
+        ValidAccountId::try_from("dex.near").unwrap()
     }
 
     fn get_context(predecessor_account_id: AccountId) -> VMContext {

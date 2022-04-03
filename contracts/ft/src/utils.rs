@@ -18,3 +18,15 @@ impl Contract {
         );
     }
 }
+
+pub(crate) fn is_valid_prefix(prefix: &near_sdk::AccountId) -> bool {
+    for c in prefix.as_bytes() {
+        match c {
+            b'-' | b'_' | b'.' => return false,
+            _ => (),
+        }
+    }
+
+    // ToDo -> Also check if the prefix is not a reserved keyword like users,settings,dao.....
+    return true;
+}
