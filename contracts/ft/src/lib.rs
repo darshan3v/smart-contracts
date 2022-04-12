@@ -10,27 +10,25 @@
 * internal.rs contains internal methods for fungible token core.
 */
 mod core_impl;
+mod game;
 mod internal;
 mod metadata;
 mod receiver;
 mod resolver;
 mod storage_impl;
-mod users_impl;
 mod utils;
 
 pub use crate::core_impl::*;
+pub use crate::game::*;
 pub use crate::metadata::*;
 pub use crate::receiver::*;
 pub use crate::resolver::*;
 pub use crate::storage_impl::*;
-pub use crate::users_impl::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap};
+use near_sdk::collections::{LazyOption, LookupMap, Vector};
 use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::{
-    env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue, StorageUsage,
-};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, StorageUsage};
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
@@ -39,6 +37,9 @@ static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc:
 pub enum StorageKey {
     Accounts,
     Metadata,
+    Achievements,
+    AchievementsMetadata,
+    AchievementsMetadataList,
 }
 
 #[near_bindgen]
@@ -48,6 +49,12 @@ pub struct Contract {
 
     //// Fungible Token
     pub token: FungibleToken,
+
+    /// In Game Achievements
+    pub achievements: Vector<Achievement>,
+
+    /// Metadata of the In Game Achievement
+    pub achievements_metadata: LazyOption<Vector<AchievementMetadata>>,
 
     /// The storage size in bytes for one account.
     pub account_storage_usage: StorageUsage,
@@ -74,14 +81,29 @@ impl Contract {
             accounts: LookupMap::new(StorageKey::Accounts.try_to_vec().unwrap()),
             total_supply: total_supply.into(),
         };
+
+        let mut achievements = Vector::new(StorageKey::Achievements.try_to_vec().unwrap());
+        achievements.extend(Achievement::new());
+
+        let mut achievements_metadata_list =
+            Vector::new(StorageKey::AchievementsMetadataList.try_to_vec().unwrap());
+        achievements_metadata_list.extend(AchievementMetadata::new());
+
+        let achievements_metadata = LazyOption::new(
+            StorageKey::AchievementsMetadata.try_to_vec().unwrap(),
+            Some(&achievements_metadata_list),
+        );
+
+        let ft_metadata =
+            LazyOption::new(StorageKey::Metadata.try_to_vec().unwrap(), Some(&metadata));
+
         let mut this = Self {
             owner_id: owner_id.clone(),
             token,
+            achievements,
+            achievements_metadata,
             account_storage_usage: 0,
-            ft_metadata: LazyOption::new(
-                StorageKey::Metadata.try_to_vec().unwrap(),
-                Some(&metadata),
-            ),
+            ft_metadata,
         };
         // Determine cost of insertion into LookupMap
 
@@ -101,17 +123,6 @@ impl Contract {
     /// Transfer the Fungible Token from one A/c to another A/c
     #[payable]
     pub fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
-        require!(
-            self.token
-                .accounts
-                .contains_key(&env::predecessor_account_id()),
-            "Register for Catch A/c"
-        );
-
-        require!(
-            self.token.accounts.contains_key(&receiver_id),
-            "Register for Catch A/c"
-        );
         self.token.ft_transfer(receiver_id, amount, memo)
     }
 
@@ -124,18 +135,6 @@ impl Contract {
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        require!(
-            self.token
-                .accounts
-                .contains_key(&env::predecessor_account_id()),
-            "Register for Catch A/c"
-        );
-
-        require!(
-            self.token.accounts.contains_key(&receiver_id),
-            "Register for Catch A/c"
-        );
-
         self.token.ft_transfer_call(receiver_id, amount, memo, msg)
     }
 
@@ -163,50 +162,6 @@ impl Contract {
     pub fn ft_balance_of(&self, account_id: ValidAccountId) -> U128 {
         self.token.ft_balance_of(account_id.into())
     }
-
-    /// Mint Fungible Token to the Owner A/c
-    pub fn mint(&mut self, amount: U128) {
-        self.assert_owner(); // Only owner can call
-
-        let amount: Balance = amount.into();
-        let owner_id = self.owner_id.clone();
-
-        if let Some(new_total_supply) = self.token.total_supply.checked_add(amount) {
-            self.token.total_supply = new_total_supply;
-        } else {
-            env::panic(b"Total Supply Overflow");
-        }
-
-        self.token.internal_deposit(&owner_id, amount);
-
-        // ToDo - Mint Event
-    }
-
-    /// Transfer Fungible Token Rewards to players
-    pub fn ft_transfer_player_reward(
-        &mut self,
-        player_id: AccountId,
-        amount: U128,
-        feat: Option<String>,
-    ) {
-        self.assert_owner();
-        require!(
-            self.token.accounts.contains_key(&player_id),
-            "Register for Catch A/c"
-        );
-
-        let amount: Balance = amount.into();
-
-        require!(amount > 0, "The amount should be a positive number");
-
-        let owner_id = self.owner_id.clone();
-        let player_id: AccountId = player_id.into();
-
-        self.token.internal_withdraw(&owner_id, amount);
-        self.token.internal_deposit(&player_id, amount);
-
-        // ToDo - Transfer Reward Event
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -217,8 +172,6 @@ mod fungible_token_tests {
 
     use super::*;
     use near_sdk::json_types::Base64VecU8;
-
-    const ZERO_U128: Balance = 0u128;
 
     // Helper functions
 
@@ -281,13 +234,14 @@ mod fungible_token_tests {
         let contract = create_contract();
 
         assert_eq!(contract.ft_total_supply().0, 1_000_000_000_000_000);
-        assert_eq!(contract.ft_balance_of(alice()).0, ZERO_U128);
-        assert_eq!(contract.ft_balance_of(bob().into()).0, ZERO_U128);
-        assert_eq!(contract.ft_balance_of(carol().into()).0, ZERO_U128);
+        assert_eq!(contract.ft_balance_of(alice()).0, 0);
+        assert_eq!(contract.ft_balance_of(bob().into()).0, 0);
+        assert_eq!(contract.ft_balance_of(carol().into()).0, 0);
         assert_eq!(
             contract.ft_balance_of(dex().into()).0,
             1_000_000_000_000_000
         );
+        // print awards and check it
     }
 
     #[test]
@@ -295,30 +249,6 @@ mod fungible_token_tests {
     fn default_fails() {
         testing_env!(get_context(carol().into()));
         let _contract = Contract::default();
-    }
-
-    // Test for mint()
-
-    #[test]
-    fn test_mint_success() {
-        testing_env!(get_context(dex().to_string()));
-
-        let mut contract = create_contract();
-        contract.mint(U128::from(5));
-
-        assert_eq!(contract.ft_total_supply().0, 1_000_000_000_000_005);
-        assert_eq!(
-            contract.ft_balance_of(dex().into()).0,
-            1_000_000_000_000_005
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "It is a owner only method")]
-    fn test_mint_fail() {
-        testing_env!(get_context(alice().to_string()));
-        let mut contract = create_contract();
-        contract.mint(U128::from(5));
     }
 
     // Todo -> Test for ft_transfer_player_reward

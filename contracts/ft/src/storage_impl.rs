@@ -18,6 +18,10 @@ pub struct StorageBalanceBounds {
 }
 
 pub trait StorageManager {
+    /// Deposit Near for the purpose of storage costs
+    ///
+    /// If Owner is calling contract funds will be directly used for the storage costs
+    fn storage_deposit(&mut self, account_id: Option<AccountId>) -> StorageBalance;
     /// Wallet UX Security -> Attach 1 Yocto,
     ///
     /// Removes the A/c if no tokens present, burns token only if force = true
@@ -40,6 +44,33 @@ pub trait StorageManager {
 
 #[near_bindgen]
 impl StorageManager for Contract {
+    #[payable]
+    fn storage_deposit(&mut self, account_id: Option<AccountId>) -> StorageBalance {
+        let amount: Balance = env::attached_deposit();
+        let account_id = account_id.unwrap_or_else(env::predecessor_account_id);
+
+        if self.token.accounts.contains_key(&account_id) {
+            log!("The account is already registered, refunding the deposit");
+            if amount > 0 {
+                Promise::new(env::predecessor_account_id()).transfer(amount);
+            }
+        } else {
+            let min_balance = self.storage_balance_bounds().min.0;
+
+            // If owner called this then directly use contract funds
+            if amount < min_balance || env::predecessor_account_id() != self.owner_id {
+                env::panic(b"The attached deposit is less than the minimum storage balance");
+            }
+            self.token.accounts.insert(&account_id, &0);
+
+            let refund = amount - min_balance;
+            if refund > 0 {
+                Promise::new(env::predecessor_account_id()).transfer(refund);
+            }
+        }
+        self.internal_storage_balance_of(&account_id).unwrap()
+    }
+
     #[payable]
     fn storage_unregister(&mut self, force: Option<bool>) -> bool {
         self.internal_storage_unregister(force).is_some()
@@ -74,6 +105,7 @@ impl Contract {
         if let Some(balance) = self.token.accounts.get(&account_id) {
             if balance == 0 || force {
                 self.token.accounts.remove(&account_id);
+
                 // no need to check as balance subtracted will always be valid
                 self.token.total_supply -= balance;
 
