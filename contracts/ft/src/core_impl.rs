@@ -20,12 +20,12 @@ pub struct FungibleToken {
 }
 
 pub trait FungibleTokenCore {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: Balance, memo: Option<String>);
 
     fn ft_transfer_call(
         &mut self,
         receiver_id: AccountId,
-        amount: U128,
+        amount: Balance,
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<U128>;
@@ -40,11 +40,10 @@ pub trait FungibleTokenCore {
 /****************************************************/
 
 impl FungibleTokenCore for FungibleToken {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: Balance, memo: Option<String>) {
         assert_one_yocto();
 
         let sender_id = env::predecessor_account_id();
-        let amount: Balance = amount.into();
 
         self.internal_transfer(&sender_id, &receiver_id, amount, memo);
     }
@@ -52,7 +51,7 @@ impl FungibleTokenCore for FungibleToken {
     fn ft_transfer_call(
         &mut self,
         receiver_id: AccountId,
-        amount: U128,
+        amount: Balance,
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<U128> {
@@ -63,7 +62,6 @@ impl FungibleTokenCore for FungibleToken {
         );
 
         let sender_id = env::predecessor_account_id();
-        let amount: Balance = amount.into();
 
         self.internal_transfer(&sender_id, &receiver_id, amount, memo);
 
@@ -79,14 +77,14 @@ impl FungibleTokenCore for FungibleToken {
         )
         .then(ext_self::ft_resolve_transfer(
             sender_id,
-            receiver_id.into(),
+            receiver_id,
             amount.into(),
             &env::current_account_id(),
             NO_DEPOSIT,
             GAS_FOR_RESOLVE_TRANSFER,
         ));
 
-        unimplemented!()
+        todo!()
 
         // ToDo -> return Value or Promise
     }

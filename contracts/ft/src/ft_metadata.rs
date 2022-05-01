@@ -11,8 +11,8 @@ pub struct FungibleTokenMetadata {
     pub name: String,
     pub symbol: String,
     pub icon: Option<String>,
-    pub reference: Option<String>,
-    pub reference_hash: Option<Base64VecU8>,
+    pub reference: String,
+    pub reference_hash: Base64VecU8,
     pub decimals: u8,
 }
 
@@ -30,12 +30,6 @@ impl FungibleTokenMetadataProvider for Contract {
 
 impl FungibleTokenMetadata {
     pub fn assert_valid_metadata(&self) {
-        require!(
-            self.reference.is_some() == self.reference_hash.is_some(),
-            "Both reference link and hash of it's contents should be provided"
-        );
-        if let Some(reference_hash) = &self.reference_hash {
-            require!(reference_hash.0.len() == 32, "Hash has to be 32 bytes");
-        }
+        require!(self.reference_hash.0.len() == 32, "Hash has to be 32 bytes");
     }
 }
