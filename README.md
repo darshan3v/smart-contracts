@@ -25,6 +25,8 @@ It would also track player achievements and their NFT's
 
 It would also handle business side of things for them to upload and get featured in the Catch Map
 
+For any user to hold Catch NFT's they have to mandatorily go through the KYC process for Legal Compliances and will be able to create sub-account Eg : username.catchlabs.near
+
 ```
 
 ## 3. Market
