@@ -51,7 +51,7 @@
 
 #### Deploying on testnet
 
-`near deploy ft.darshan3v.testnet --wasmFile target/wasm32-unknown-unknown/release/ft.wasm`
+`near deploy $FT_CONTRACT --wasmFile target/wasm32-unknown-unknown/release/ft.wasm`
 
 deployed on testnet @ `ft.darshan3v.testnet`
 
