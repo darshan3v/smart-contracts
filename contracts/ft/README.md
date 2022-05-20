@@ -41,7 +41,7 @@
 
 > I'm logged in as darshan3v.testnet 
 
-`export FT_CONTRACT=ft.darsahn3v.testnet`
+`export FT_CONTRACT=ft.darshan3v.testnet`
 
 `export OWNER=darshan3v.testnet`
 
