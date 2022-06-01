@@ -19,8 +19,23 @@ function getConfig(env) {
 }
 
 const contractMethods = {
-  viewMethods: ["storage_balance_bounds","storage_balance_of","ft_metadata","ft_total_supply","ft_balance_of"],
-  changeMethods: ["storage_deposit","storage_withdraw","storage_unregister","ft_transfer","ft_transfer_call","mint","ft_transfer_player_reward","new"],
+  viewMethods: [
+    "storage_balance_bounds",
+    "storage_balance_of",
+    "ft_metadata",
+    "ft_total_supply",
+    "ft_balance_of",
+  ],
+  changeMethods: [
+    "storage_deposit",
+    "storage_withdraw",
+    "storage_unregister",
+    "ft_transfer",
+    "ft_transfer_call",
+    "mint",
+    "ft_transfer_player_reward",
+    "new",
+  ],
 };
 let config;
 let masterAccount;
@@ -71,7 +86,9 @@ async function createContractUser(
 }
 
 async function initTest() {
-  const contract = await fs.readFile("/home/darshan/projects/near/catch/contracts/ft/target/wasm32-unknown-unknown/release/ft.wasm");
+  const contract = await fs.readFile(
+    "/home/darshan/projects/near/catch/contracts/ft/target/wasm32-unknown-unknown/release/ft.wasm"
+  );
   const _contractAccount = await masterAccount.createAndDeployContract(
     config.contractAccount,
     pubKey,
@@ -102,21 +119,25 @@ async function test() {
 
   // 2. Initialising Contract
 
-  let owner_id = "alice.test.near";
-  let total_supply = "10000000000000000000000"; // Greater than 2^53
-  let metadata = {
-    "spec": "1.1.0",
-    "name": "CAT Token",
-    "symbol": "CAT",
-    "icon": "C-A-T-C-H",
-    "reference": "https://github.com/near/core-contracts/tree/master/w-near-141",
-    "reference_hash": "AK3YRHqKhCJNmKfV6SrutnlWW/icN5J8NUPtKsNXR1M=",
-    "decimals": 0,
+  const owner_id = "alice.test.near";
+  const total_supply = "10000000000000000000000"; // Greater than 2^53
+  const metadata = {
+    spec: "1.1.0",
+    name: "CAT Token",
+    symbol: "CAT",
+    icon: "C-A-T-C-H",
+    reference: "https://github.com/near/core-contracts/tree/master/w-near-141",
+    reference_hash: "AK3YRHqKhCJNmKfV6SrutnlWW/icN5J8NUPtKsNXR1M=",       // make a byte array of 32 size to base64 string
+    decimals: 0,
   };
 
- await aliceUseContract.new({args: {
-    owner_id, total_supply, metadata 
-  }})
+  await aliceUseContract.new({
+    args: {
+      owner_id,
+      total_supply,
+      metadata,
+    },
+  });
 
   /****************************/
   /*  TEST - STORAGE MANAGER  */
@@ -124,26 +145,31 @@ async function test() {
 
   // Test storage_balance_bounds()
 
-  let exp_storage_balance_bounds = {
-    "min": "1250000000000000000000",
-    "max": "1250000000000000000000"
+  const exp_storage_balance_bounds = {
+    min: "1250000000000000000000",
+    max: "1250000000000000000000",
   };
 
-  let storage_balance_bounds = await aliceUseContract.storage_balance_bounds();
-  assert.equal(storage_balance_bounds,exp_storage_balance_bounds)
+  const storage_balance_bounds =
+    await aliceUseContract.storage_balance_bounds();
+  assert.deepEqual(storage_balance_bounds, exp_storage_balance_bounds);
 
   // Test storage_balance_of()
 
-  let exp_storage_balance_of = {
-    "total": "1250000000000000000000",
-    "available": "0"
-  }
+  const exp_storage_balance_of = {
+    total: "1250000000000000000000",
+    available: "0",
+  };
 
-  let storage_balance_of_alice = await bobUseContract.storage_balance_of("alice.test.near");
-  assert.equal(storage_balance_of_alice,exp_storage_balance_of)
+  const storage_balance_of_alice = await bobUseContract.storage_balance_of({
+    account_id: "alice.test.near"
+  });
+  assert.deepEqual(storage_balance_of_alice, exp_storage_balance_of);
 
-  let storage_balance_of_bob = await bobUseContract.storage_balance_of("bob.test.near");
-  assert.equal(storage_balance_of_bob,exp_storage_balance_of)
+  let storage_balance_of_bob = await bobUseContract.storage_balance_of({
+    account_id: "bo2b.test.near",
+  });
+  assert.deepEqual(storage_balance_of_bob, null);
 }
 
 test();

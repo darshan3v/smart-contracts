@@ -1,9 +1,5 @@
 use crate::*;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::Vector;
-use near_sdk::json_types::Base64VecU8;
-use near_sdk::serde::Serialize;
-use near_sdk::{near_bindgen, Balance};
+
 use std::convert::From;
 
 /************/
@@ -250,62 +246,16 @@ impl Contract {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
-mod fungible_token_tests {
+mod game_obj_tests {
     use super::*;
+    use utils::test_utils::*;
+
     use near_sdk::json_types::Base64VecU8;
+    use near_sdk::testing_env;
     use near_sdk::Balance;
     use near_sdk::MockedBlockchain;
-    use near_sdk::{testing_env, VMContext};
 
-    const ONE_YOCTO: Balance = 1;
-
-    // Helper functions
-    fn carol() -> ValidAccountId {
-        ValidAccountId::try_from("carol.near").unwrap()
-    }
-    fn dex() -> ValidAccountId {
-        ValidAccountId::try_from("dex.near").unwrap()
-    }
-    fn nft() -> ValidAccountId {
-        ValidAccountId::try_from("nft.catchlabs.near").unwrap()
-    }
-
-    fn get_context(predecessor_account_id: AccountId, attached_deposit: Balance) -> VMContext {
-        VMContext {
-            current_account_id: "mike.near".to_string(),
-            signer_account_id: "bob.near".to_string(),
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id,
-            input: vec![],
-            block_index: 0,
-            block_timestamp: 0,
-            account_balance: 1000 * 10u128.pow(24),
-            account_locked_balance: 0,
-            storage_usage: 10u64.pow(6),
-            attached_deposit,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view: false,
-            output_data_receivers: vec![],
-            epoch_height: 0,
-        }
-    }
-
-    fn create_contract() -> Contract {
-        let metadata = FungibleTokenMetadata {
-            spec: String::from("1.1.0"),
-            name: String::from("CAT Token"),
-            symbol: String::from("CAT"),
-            icon: Some(String::from("C-A-T-C-H")),
-            reference: String::from(
-                "https://github.com/near/core-contracts/tree/master/w-near-141",
-            ),
-            reference_hash: Base64VecU8::from([5_u8; 32].to_vec()),
-            decimals: 0,
-        };
-        let total_supply = U128::from(1_000_000_000_000_000);
-        Contract::new(dex(), total_supply, metadata)
-    }
+    const STORAGE_COST: Balance = 1_250_000_000_000_000_000_000; // 1 Near = 10^24 Yocto Near
 
     #[test]
     #[should_panic(expected = "Reward distribution can only be handled by CatchLabs NFT Contract")]
@@ -334,7 +284,7 @@ mod fungible_token_tests {
     #[test]
     #[should_panic(expected = "Invalid Objective")]
     fn transfer_reward_invalid_objective() {
-        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
+        testing_env!(get_context(dex().to_string(), STORAGE_COST));
 
         let mut contract = create_contract();
         contract.storage_deposit(Some(carol()));
@@ -349,7 +299,7 @@ mod fungible_token_tests {
 
     #[test]
     fn transfer_reward() {
-        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
+        testing_env!(get_context(dex().to_string(), STORAGE_COST));
 
         let mut contract = create_contract();
         contract.storage_deposit(Some(carol()));

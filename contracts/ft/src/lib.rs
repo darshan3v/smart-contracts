@@ -8,9 +8,11 @@
  * storage_impl.rs implements NEP-145 standard for allocating storage per account
  * catch_game.rs implements Objectuve and Reward Functionality for users
  * ft_metadata.rs implements NEP-148 standard for providing token-specific metadata.
+ * events.rs extends NEP-297 for better indexing
  * internal.rs contains internal methods for fungible token core.
  **/
 mod core_impl;
+mod events;
 mod ft_metadata;
 mod internal;
 mod receiver;
@@ -20,20 +22,28 @@ mod utils;
 
 mod catch_game;
 
-pub use crate::catch_game::*;
-pub use crate::core_impl::*;
-pub use crate::ft_metadata::*;
-pub use crate::receiver::*;
-pub use crate::resolver::*;
-pub use crate::storage_impl::*;
+pub use crate::catch_game::CatchObjectives;
+pub use crate::core_impl::{FungibleToken, FungibleTokenCore};
+pub use crate::events::{FtBurnLog, FtMintLog, FtTransferLog};
+pub use crate::ft_metadata::FungibleTokenMetadata;
+pub use crate::receiver::ext_fungible_token_receiver;
+pub use crate::resolver::{ext_self, FungibleTokenResolver};
+pub use crate::storage_impl::StorageManager;
+use crate::utils::is_valid_username;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, StorageUsage};
+use near_sdk::collections::{LazyOption, LookupMap, Vector};
+use near_sdk::json_types::{Base58PublicKey, Base64VecU8, ValidAccountId, U128};
+use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::{
+    assert_one_yocto, assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult, StorageUsage,
+};
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+
+const BASE_STORAGE_COST: Balance = 4_000_000_000_000_000_000_000;
 
 #[derive(BorshSerialize)]
 pub enum StorageKey {
@@ -106,6 +116,14 @@ impl Contract {
 
         let total_supply_u128: u128 = total_supply.into();
         this.token.accounts.insert(&owner_id, &total_supply_u128);
+
+        FtMintLog {
+            owner_id: owner_id.to_string(),
+            amount: total_supply,
+            memo: Some("Mint".to_string()),
+        }
+        .emit();
+
         this
     }
 
@@ -117,6 +135,7 @@ impl Contract {
     }
 
     /// Transfer Fungible tokens to a Contract and call on_transfer function of the contract
+    /// returns the amount of tokens used by the contract
     #[payable]
     pub fn ft_transfer_call(
         &mut self,
@@ -153,70 +172,45 @@ impl Contract {
     pub fn ft_balance_of(&self, account_id: ValidAccountId) -> U128 {
         self.token.ft_balance_of(account_id.into())
     }
+
+    /// Create Sub Accounts for user and registers them with ft contract, if already registered leaves it unchanged
+    ///
+    /// Also this assumes that there will be enough near for account creation in the contract, this can be ensured and even panic won't cause any issues
+    pub fn create_user_account(
+        &mut self,
+        username: ValidAccountId,
+        player_public_key: Base58PublicKey,
+    ) {
+        self.assert_owner();
+
+        let username: String = username.into();
+
+        require!(is_valid_username(&username), "Invalid Username");
+
+        let subaccount = AccountId::from(format!("{}.{}", username, env::current_account_id()));
+
+        if !self.token.accounts.contains_key(&subaccount) {
+            self.token.accounts.insert(&subaccount, &0);
+        }
+
+        Promise::new(subaccount.clone())
+            .create_account()
+            .add_full_access_key(player_public_key.into())
+            .transfer(BASE_STORAGE_COST);
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod ft_core_tests {
     use super::*;
-    use near_sdk::json_types::Base64VecU8;
-    use near_sdk::Balance;
+    use utils::test_utils::*;
+
     use near_sdk::MockedBlockchain;
-    use near_sdk::{testing_env, VMContext};
+    use near_sdk::{testing_env, Balance};
 
     const ONE_YOCTO: Balance = 1;
-
-    // Helper functions
-
-    fn alice() -> ValidAccountId {
-        ValidAccountId::try_from("alice.near").unwrap()
-    }
-    fn bob() -> ValidAccountId {
-        ValidAccountId::try_from("bob.near").unwrap()
-    }
-    fn carol() -> ValidAccountId {
-        ValidAccountId::try_from("carol.near").unwrap()
-    }
-    fn dex() -> ValidAccountId {
-        ValidAccountId::try_from("dex.near").unwrap()
-    }
-
-    fn get_context(predecessor_account_id: AccountId, attached_deposit: Balance) -> VMContext {
-        VMContext {
-            current_account_id: "mike.near".to_string(),
-            signer_account_id: "bob.near".to_string(),
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id,
-            input: vec![],
-            block_index: 0,
-            block_timestamp: 0,
-            account_balance: 1000 * 10u128.pow(24),
-            account_locked_balance: 0,
-            storage_usage: 10u64.pow(6),
-            attached_deposit,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view: false,
-            output_data_receivers: vec![],
-            epoch_height: 0,
-        }
-    }
-
-    fn create_contract() -> Contract {
-        let metadata = FungibleTokenMetadata {
-            spec: String::from("1.1.0"),
-            name: String::from("CAT Token"),
-            symbol: String::from("CAT"),
-            icon: Some(String::from("C-A-T-C-H")),
-            reference: String::from(
-                "https://github.com/near/core-contracts/tree/master/w-near-141",
-            ),
-            reference_hash: Base64VecU8::from([5_u8; 32].to_vec()),
-            decimals: 0,
-        };
-        let total_supply = U128::from(1_000_000_000_000_000);
-        Contract::new(dex(), total_supply, metadata)
-    }
+    const STORAGE_COST: Balance = 1_250_000_000_000_000_000_000; // 1 Near = 10^24 Yocto Near
 
     // Test for new()
 
@@ -246,13 +240,14 @@ mod ft_core_tests {
     // Test for ft_transfer
     #[test]
     fn test_ft_transfer() {
-        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
+        testing_env!(get_context(dex().to_string(), STORAGE_COST));
 
         let mut contract = create_contract();
         let amount = U128::from(100_000_000);
         let remaining_balance = U128::from(contract.ft_total_supply().0 - amount.0);
 
         contract.storage_deposit(Some(carol()));
+        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
         contract.ft_transfer(carol(), amount, None);
         assert_eq!(contract.ft_balance_of(carol()), amount);
         assert_eq!(contract.ft_balance_of(dex()), remaining_balance);
@@ -266,5 +261,17 @@ mod ft_core_tests {
         let mut contract = create_contract();
         let amount = U128::from(100_000_000);
         contract.ft_transfer(carol(), amount, None);
+    }
+
+    #[test]
+    fn test_create_user_account() {
+        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
+
+        let username = ValidAccountId::try_from("xyzusername").unwrap();
+        let player_public_key =
+            Base58PublicKey::try_from("3tysLvy7KGoE8pznUgXvSHa4vYyGvrDZFcT8jgb8PEQ6").unwrap();
+
+        let mut contract = create_contract();
+        contract.create_user_account(username, player_public_key);
     }
 }

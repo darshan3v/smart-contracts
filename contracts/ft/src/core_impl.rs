@@ -1,9 +1,4 @@
-use crate::{receiver::ext_fungible_token_receiver, require, resolver::ext_self};
-
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
-use near_sdk::json_types::U128;
-use near_sdk::{assert_one_yocto, env, AccountId, Balance, Gas, PromiseOrValue};
+use crate::*;
 
 const GAS_FOR_RESOLVE_TRANSFER: Gas = 5_000_000_000_000;
 const GAS_FOR_FT_TRANSFER_CALL: Gas = 25_000_000_000_000 + GAS_FOR_RESOLVE_TRANSFER;
@@ -82,11 +77,8 @@ impl FungibleTokenCore for FungibleToken {
             &env::current_account_id(),
             NO_DEPOSIT,
             GAS_FOR_RESOLVE_TRANSFER,
-        ));
-
-        todo!()
-
-        // ToDo -> return Value or Promise
+        ))
+        .into()
     }
 
     fn ft_total_supply(&self) -> U128 {

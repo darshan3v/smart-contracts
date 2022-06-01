@@ -1,7 +1,4 @@
-use crate::{core_impl::FungibleToken, require};
-
-use near_sdk::json_types::U128;
-use near_sdk::{env, AccountId, Balance, PromiseResult};
+use crate::*;
 
 /**********************************************/
 /*  INTERNAL FUNCTIONS - FUNGIBLE TOKEN CORE  */
@@ -51,7 +48,13 @@ impl FungibleToken {
         self.internal_withdraw(sender_id, amount);
         self.internal_deposit(receiver_id, amount);
 
-        // ToDo -> Emit Transfer Event
+        FtTransferLog {
+            old_owner_id: sender_id.to_string(),
+            new_owner_id: receiver_id.to_string(),
+            amount: U128::from(amount),
+            memo,
+        }
+        .emit();
     }
 
     pub fn internal_resolve_transfer(
@@ -70,7 +73,7 @@ impl FungibleToken {
                     amount
                 }
             }
-            PromiseResult::Failed => amount, // TODO why
+            PromiseResult::Failed => amount,
         };
 
         if unused_amount > 0 {
@@ -86,22 +89,29 @@ impl FungibleToken {
                     self.accounts
                         .insert(&sender_id, &(sender_balance + refund_amount));
 
-                    env::log(
-                        format!(
-                            "Refund {} from {} to {}",
-                            refund_amount, receiver_id, sender_id
-                        )
-                        .as_bytes(),
-                    );
+                    FtTransferLog {
+                        old_owner_id: receiver_id.to_string(),
+                        new_owner_id: sender_id.to_string(),
+                        amount: U128::from(refund_amount),
+                        memo: Some("refund".to_string()),
+                    }
+                    .emit();
                     return (amount - refund_amount).into();
                 } else {
                     // Sender's account was deleted, so we need to burn tokens.
                     self.total_supply -= refund_amount;
 
-                    // TODO : Burn Event
+                    log!("The account of the sender was deleted");
+
+                    FtBurnLog {
+                        owner_id: receiver_id.to_string(),
+                        amount: U128::from(refund_amount),
+                        memo: Some("burn".to_string()),
+                    }
+                    .emit();
                 }
             }
         }
-        amount // TODO: i think this should be something else, how many were returned
+        amount
     }
 }

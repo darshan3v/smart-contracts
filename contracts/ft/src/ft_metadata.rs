@@ -1,16 +1,12 @@
 use crate::*;
 
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::Base64VecU8;
-use near_sdk::serde::{Deserialize, Serialize};
-
 #[derive(BorshDeserialize, BorshSerialize, Clone, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FungibleTokenMetadata {
     pub spec: String,
     pub name: String,
     pub symbol: String,
-    pub icon: Option<String>,
+    pub icon: String,
     pub reference: String,
     pub reference_hash: Base64VecU8,
     pub decimals: u8,

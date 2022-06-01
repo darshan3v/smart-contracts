@@ -1,7 +1,4 @@
 use crate::*;
-use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::serde::Serialize;
-use near_sdk::{assert_one_yocto, env, log, AccountId, Balance, Promise};
 
 #[derive(Serialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -19,8 +16,6 @@ pub struct StorageBalanceBounds {
 
 pub trait StorageManager {
     /// Deposit Near for the purpose of storage costs
-    ///
-    /// If Owner is calling contract funds will be directly used for the storage costs
     fn storage_deposit(&mut self, account_id: Option<ValidAccountId>) -> StorageBalance;
 
     /// Wallet UX Security -> Attach 1 Yocto,
@@ -61,21 +56,14 @@ impl StorageManager for Contract {
             }
         } else {
             let min_balance = self.storage_balance_bounds().min.0;
-
-            // If owner called this then directly use contract funds
-            if amount < min_balance && env::predecessor_account_id() != self.owner_id {
-                env::panic(b"The attached deposit is less than the minimum storage balance");
-            }
-
-            // Checking if attached deposit + contract funds are enough to cover storage costs for new_user
             require!(
-                env::account_balance() > min_balance,
-                "Not Enough funds to cover storage costs for the user"
+                amount >= min_balance,
+                format!("Please Attach a deposit of {} Yocto Near", min_balance)
             );
 
             self.token.accounts.insert(&account_id, &0);
 
-            let refund = amount.checked_sub(min_balance).unwrap_or_else(|| 0);
+            let refund = amount - min_balance;
 
             if refund > 0 {
                 Promise::new(env::predecessor_account_id()).transfer(refund);
@@ -122,14 +110,14 @@ impl Contract {
                 // no need to check as balance subtracted will always be valid
                 self.token.total_supply -= balance;
 
-                // ToDo -> Emit Burn Event
+                FtBurnLog {
+                    owner_id: account_id.to_string(),
+                    amount: U128::from(balance),
+                    memo: Some("Account Unregistered ! & Tokens burnt if there".to_string()),
+                }
+                .emit();
 
                 Promise::new(account_id.clone()).transfer(self.storage_balance_bounds().min.0 + 1);
-                log!(
-                    "{} sucessfully removed and {} remaining tokens burnt",
-                    &account_id,
-                    balance
-                );
                 Some((account_id, balance))
             } else {
                 env::panic(b"Can't unregister the account with the positive balance without force")
@@ -154,62 +142,19 @@ impl Contract {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
-mod fungible_token_tests {
+mod storage_tests {
     use super::*;
-    use near_sdk::json_types::Base64VecU8;
+    use utils::test_utils::*;
+
+    use near_sdk::testing_env;
     use near_sdk::Balance;
     use near_sdk::MockedBlockchain;
-    use near_sdk::{testing_env, VMContext};
 
     const ONE_YOCTO: Balance = 1;
-
-    // Helper functions
-    fn carol() -> ValidAccountId {
-        ValidAccountId::try_from("carol.near").unwrap()
-    }
-    fn dex() -> ValidAccountId {
-        ValidAccountId::try_from("dex.near").unwrap()
-    }
-
-    fn get_context(predecessor_account_id: AccountId, attached_deposit: Balance) -> VMContext {
-        VMContext {
-            current_account_id: "mike.near".to_string(),
-            signer_account_id: "bob.near".to_string(),
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id,
-            input: vec![],
-            block_index: 0,
-            block_timestamp: 0,
-            account_balance: 1000 * 10u128.pow(24),
-            account_locked_balance: 0,
-            storage_usage: 10u64.pow(6),
-            attached_deposit,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view: false,
-            output_data_receivers: vec![],
-            epoch_height: 0,
-        }
-    }
-
-    fn create_contract() -> Contract {
-        let metadata = FungibleTokenMetadata {
-            spec: String::from("1.1.0"),
-            name: String::from("CAT Token"),
-            symbol: String::from("CAT"),
-            icon: Some(String::from("C-A-T-C-H")),
-            reference: String::from(
-                "https://github.com/near/core-contracts/tree/master/w-near-141",
-            ),
-            reference_hash: Base64VecU8::from([5_u8; 32].to_vec()),
-            decimals: 0,
-        };
-        let total_supply = U128::from(1_000_000_000_000_000);
-        Contract::new(dex(), total_supply, metadata)
-    }
+    const STORAGE_COST: Balance = 1_250_000_000_000_000_000_000; // 1 Near = 10^24 Yocto Near
 
     #[test]
-    #[should_panic(expected = "The attached deposit is less than the minimum storage balance")]
+    #[should_panic(expected = "Please Attach a deposit of 1250000000000000000000 Yocto Near")]
     fn storage_deposit_fails() {
         testing_env!(get_context(carol().to_string(), 500));
         let mut contract = create_contract();
@@ -221,9 +166,10 @@ mod fungible_token_tests {
         expected = "Can't unregister the account with the positive balance without force"
     )]
     fn storage_unregister_fails() {
-        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
+        testing_env!(get_context(dex().to_string(), STORAGE_COST));
         let mut contract = create_contract();
         contract.storage_deposit(Some(carol()));
+        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
         contract.ft_transfer(carol(), U128::from(1000), None);
 
         testing_env!(get_context(carol().to_string(), ONE_YOCTO));
@@ -237,9 +183,10 @@ mod fungible_token_tests {
         // can't unregister A/c bcz not registered itself
         assert!(!contract.storage_unregister(Some(false)));
 
-        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
+        testing_env!(get_context(dex().to_string(), STORAGE_COST));
 
         contract.storage_deposit(Some(carol()));
+        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
         contract.ft_transfer(carol(), U128::from(1000), None);
 
         testing_env!(get_context(carol().to_string(), ONE_YOCTO));

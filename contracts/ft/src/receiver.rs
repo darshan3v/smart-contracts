@@ -1,5 +1,4 @@
-use near_sdk::ext_contract;
-use near_sdk::json_types::U128;
+use crate::*;
 
 #[ext_contract(ext_fungible_token_receiver)]
 trait FungibleTokenReceiver {

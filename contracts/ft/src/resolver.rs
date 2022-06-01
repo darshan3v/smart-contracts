@@ -1,7 +1,4 @@
-use crate::core_impl::FungibleToken;
-
-use near_sdk::json_types::U128;
-use near_sdk::{assert_self, ext_contract, AccountId, Balance};
+use crate::*;
 
 #[ext_contract(ext_self)]
 pub trait FungibleTokenResolverExt {
