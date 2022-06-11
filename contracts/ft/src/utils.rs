@@ -10,6 +10,13 @@ macro_rules! require {
 }
 
 pub(crate) fn is_valid_username(username: &str) -> bool {
+    for i in 0_u8..9_u8 {
+        require!(
+            username.starts_with(&i.to_string()),
+            "Username can not start with a digit"
+        );
+    }
+
     for c in username.as_bytes() {
         match c {
             b'-' | b'_' | b'.' => return false,

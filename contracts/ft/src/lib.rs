@@ -174,8 +174,8 @@ impl Contract {
     }
 
     /// Create Sub Accounts for user and registers them with ft contract, if already registered leaves it unchanged
-    ///
-    /// Also this assumes that there will be enough near for account creation in the contract, this can be ensured and even panic won't cause any issues
+    /// [Doing it based on assumption for Optimisation reasons]
+    /// Also this assumes that there will be enough Near for account creation and storage in the contract, this can be ensured and even panic won't cause any issues [Reason: Optimisation]
     pub fn create_user_account(
         &mut self,
         username: ValidAccountId,
