@@ -26,8 +26,6 @@ impl FungibleTokenResolver for FungibleToken {
         receiver_id: AccountId,
         amount: U128,
     ) -> U128 {
-        assert_self(); // Private Function
-
         let amount: Balance = amount.into();
 
         self.internal_resolve_transfer(&sender_id, &receiver_id, amount)

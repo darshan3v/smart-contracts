@@ -6,7 +6,7 @@ const MIN_GAS_FOR_NFT_TRANSFER_CALL: Gas = 100_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
 
 pub trait NonFungibleTokenCore {
-    //transfers an NFT to a receiver ID
+    //transfers an NFT to a receiver ID [transfers restricted only among Catch Players]
     fn nft_transfer(
         &mut self,
         receiver_id: AccountId,
@@ -95,6 +95,7 @@ impl NonFungibleTokenCore for Contract {
         );
     }
 
+    // ToDo -> Probably this functions not required and now still player can do proxy market my deploying contract on their account so have to think and will have to do like approval stuff
     // This will transfer the NFT and call a method on the reciver_id contract
     #[payable]
     fn nft_transfer_call(

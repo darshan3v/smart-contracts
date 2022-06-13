@@ -1,6 +1,6 @@
 /**
 * Non Fungible Token NEP-171 Token contract
-
+* Approval NEP-178
 * Enumeration NEP-181
 * Metadata NEP-177
 * Royalties and Payout NEP-199
@@ -8,7 +8,7 @@
 * The aim of the contract is to provide a basic implementation of the improved function NFT standard.
 *
 * lib.rs is the main entry point.
-* nft_core.rs implements NEP-171 standard handles core function regarding nft transfers
+* nft_core.rs implements NEP-171 standard handles core function regarding nft transfers [restricted to  only catch sub account's that is players]
 * approval.rs implements Approval Management NEP-178 for management of approvals of transfer of NFT and   also implements Marketplace Approval System.
 * enumeration.rs implements NEP-181 standard for getter functions to retrieve data off-chain
 * mint.rs implements nft_minting functionality
@@ -89,10 +89,10 @@ pub struct Contract {
 impl Contract {
     /// Initialize The Contract
     #[init]
-    pub fn new(owner_id: AccountId, metadata: NFTContractMetadata) -> Self {
+    pub fn new(owner_id: ValidAccountId, metadata: NFTContractMetadata) -> Self {
         metadata.assert_valid_metadata();
         let mut this = Self {
-            owner_id,
+            owner_id: owner_id.into(),
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(
@@ -115,7 +115,7 @@ impl Contract {
     }
 
     #[init]
-    pub fn new_default_meta(owner_id: AccountId) -> Self {
+    pub fn new_default_meta(owner_id: ValidAccountId) -> Self {
         //calls the other function "new: with some default metadata and the owner_id passed in
         Self::new(
             owner_id,
