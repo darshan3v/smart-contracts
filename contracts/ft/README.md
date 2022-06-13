@@ -75,6 +75,10 @@ deployed on testnet @ `ft.darshan3v.testnet`
 
 `near view $FT_CONTRACT storage_balance_of '{"account_id": "'$OWNER'"}'`
 
+#### create_user_account fn
+
+`near call $FT_CONTRACT create_user_account '{"username": "someusername", "player_public_key": "DVFW2W92JjTKTB4isyCTtGSSB1jNZ9Pq2LNbkNzRxMFN"}' --accountId $OWNER`
+
 #### ft_transfer fn
 
 `near call $FT_CONTRACT ft_transfer '{"receiver_id": "andrius.testnet","amount": "100000", "memo": "testing ft_transfer" }' --accountId $OWNER --depositYocto 1`
