@@ -39,21 +39,23 @@
 
 ### Calling the Contract from CLI
 
-> I'm logged in as darshan3v.testnet 
+> I'm logged in as catchlabs.testnet 
 
-`export FT_CONTRACT=ft.darshan3v.testnet`
+`export FT_CONTRACT=ft.catchlabs.testnet`
 
 `export OWNER=darshan3v.testnet`
 
 #### Create Sub-Account for deploying 
 
-`near create-account $FT_CONTRACT --masterAccount $OWNER`
+`near create-account $FT_CONTRACT --masterAccount catchlabs.testnet`
 
 #### Deploying on testnet
 
-`near deploy $FT_CONTRACT --wasmFile target/wasm32-unknown-unknown/release/ft.wasm`
+`near deploy $FT_CONTRACT --wasmFile res/ft.wasm`
 
-deployed on testnet @ `ft.darshan3v.testnet`
+deployed on testnet @ `ft.catchlabs.testnet`
+
+> Now I'm logged in as darshan3v.testnet
 
 #### Init function
 
