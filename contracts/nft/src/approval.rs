@@ -80,9 +80,9 @@ impl NonFungibleTokenCore for Contract {
                 token.owner_id,
                 approval_id,
                 msg,
-                &account_id,                              //contract account we're calling
-                NO_DEPOSIT,                               //NEAR deposit we attach to the call
-                env::prepaid_gas() - GAS_FOR_NFT_APPROVE, //GAS we're attaching
+                &account_id,                                        // contract account we're calling
+                NO_DEPOSIT,                               // NEAR deposit we attach to the call
+                env::prepaid_gas() - GAS_FOR_NFT_APPROVE,     // GAS we're attaching
             )
             .as_return(); // Returning this promise
         }
@@ -160,13 +160,19 @@ impl NonFungibleTokenCore for Contract {
 
 #[near_bindgen]
 impl Contract {
-    // This function adds a marketplace to the approved marketplace list allowing users to list their
+    // This function adds marketplaces to the approved marketplace list allowing users to list their
     // NFT's on this marketplace
     // [Doing it based on assumption for Optimisation reasons]
-    // Also this assumes that there will be enough Near for storage in the contract, this can be ensured  // and even panic won't cause any issues
-    pub fn approve_marketplace(&mut self, marketplace_id: ValidAccountId) {
+    // Also this assumes that there will be enough Near for storage in the contract, this can be ensured and even panic won't cause any issues
+    pub fn approve_marketplaces(&mut self, marketplaces: Vec<ValidAccountId>) -> Vec<bool> {
         self.assert_owner();
 
-        self.approved_marketplaces.insert(&marketplace_id.into());
+        let mut added = Vec::with_capacity(marketplaces.len());
+
+        for marketplace in marketplaces{
+            added.push(self.approved_marketplaces.insert(&marketplace.into()));
+        }
+
+        added
     }
 }
