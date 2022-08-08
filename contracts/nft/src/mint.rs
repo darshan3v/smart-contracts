@@ -63,7 +63,7 @@ impl Contract {
 
             mint_logs.push(NftMintLog {
                 owner_id: token.owner_id.to_string(),
-                token_ids: vec![token_id.to_string()],
+                token_id: token_id.to_string(),
                 memo: None,
             });
         }

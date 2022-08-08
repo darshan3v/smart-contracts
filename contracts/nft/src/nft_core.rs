@@ -228,7 +228,7 @@ impl NonFungibleTokenResolver for Contract {
             authorized_id,
             old_owner_id: receiver_id.to_string(),
             new_owner_id: owner_id.to_string(),
-            token_ids: vec![token_id.to_string()],
+            token_id: token_id.to_string(),
             memo,
         }];
 
