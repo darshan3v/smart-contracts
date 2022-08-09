@@ -8,13 +8,13 @@
 * The aim of the contract is to provide a basic implementation of the improved function NFT standard.
 *
 * lib.rs is the main entry point.
-* nft_core.rs implements NEP-171 standard handles core function regarding nft transfers [restricted to  only catch sub account's that is players]
+* nft_core.rs implements NEP-171 standard handles core function regarding nft transfers [Transfers only among users who satisfy dependencies]
 * approval.rs implements Approval Management NEP-178 for management of approvals of transfer of NFT and   also implements Marketplace Approval System.
 * enumeration.rs implements NEP-181 standard for getter functions to retrieve data off-chain
 * mint.rs implements nft_minting functionality
-* royalty.rs implements functionality regarding perpetual royalties and payout
 * metadata.rs implements NEP-177 standard for both Contract and NFT-specific metadata.
-* events.rs extends NEP-297 for better indexing
+* indexing.rs extends NEP-297 for better indexing
+* events.rs implements the functionality related to events such as issuing NFT passes for an event
 * internal.rs contains internal methods.
 **/
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -23,27 +23,31 @@ use near_sdk::json_types::{Base64VecU8, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_one_yocto, env, ext_contract, near_bindgen, AccountId, Balance, CryptoHash, Gas,
-    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
+    PanicOnDefault, Promise,
 };
+
 use std::collections::HashMap;
 
 pub use crate::approval::*;
 pub use crate::events::*;
+pub use crate::indexing::*;
 use crate::internal::*;
 pub use crate::metadata::*;
 pub use crate::mint::*;
 pub use crate::nft_core::NonFungibleTokenCore;
-pub use crate::royalty::*;
-use crate::utils::is_catch_player;
+use crate::utils::{
+    assert_token_availability, assert_valid_id, build_full_token_id, is_token_expired,
+    resolve_token_id,
+};
 
 mod approval;
 mod enumeration;
 mod events;
+mod indexing;
 mod internal;
 mod metadata;
 mod mint;
 mod nft_core;
-mod royalty;
 mod utils;
 
 const CATCH_MARKETPLACE_CONTRACT: &str = "marketplace.catchlabs.near";
@@ -55,12 +59,11 @@ pub enum StorageKey {
     TokensPerOwner,
     TokenPerOwnerInner { account_id_hash: CryptoHash },
     TokensById,
+    ApprovedAccountsPerToken { token_id_hash: CryptoHash },
     TokenMetadataById,
-    NFTContractMetadata,
-    TokensPerType,
-    TokensPerTypeInner { token_type_hash: CryptoHash },
-    TokenTypesLocked,
+    EventsById,
     ApprovedMarketplaces,
+    NFTContractMetadata,
 }
 
 #[near_bindgen]
@@ -78,6 +81,9 @@ pub struct Contract {
     //keeps track of the token metadata for a given token ID
     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
 
+    //keeps track of events for a given event ID
+    pub events_by_id: UnorderedMap<EventId, Event>,
+
     //keeps track of the approved marketplace contracts
     pub approved_marketplaces: UnorderedSet<AccountId>,
 
@@ -93,14 +99,21 @@ impl Contract {
         metadata.assert_valid_metadata();
         let mut this = Self {
             owner_id: owner_id.into(),
+
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
+
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
+
             token_metadata_by_id: UnorderedMap::new(
                 StorageKey::TokenMetadataById.try_to_vec().unwrap(),
             ),
+
+            events_by_id: UnorderedMap::new(StorageKey::EventsById.try_to_vec().unwrap()),
+
             approved_marketplaces: UnorderedSet::new(
                 StorageKey::ApprovedMarketplaces.try_to_vec().unwrap(),
             ),
+
             metadata: LazyOption::new(
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
@@ -121,7 +134,7 @@ impl Contract {
             owner_id,
             NFTContractMetadata {
                 spec: "nft-1.0.0".to_string(),
-                name: "Catch NFT Contract".to_string(),
+                name: "Catch".to_string(),
                 symbol: "CATCH".to_string(),
                 icon: None,
                 base_uri: "ipfs".to_string(),

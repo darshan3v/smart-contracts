@@ -1,135 +1,133 @@
-use std::fmt;
-
 use crate::*;
 
-pub const NFT_STANDARD_NAME: &str = "nep171";
+pub type EventId = String;
 
-pub const NFT_METADATA_SPEC: &str = "1.0.0";
-
-/// Enum that represents the data type of the EventLog.
-#[derive(Serialize, Debug)]
-#[serde(tag = "event", content = "data")]
-#[serde(rename_all = "snake_case")]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-#[non_exhaustive]
-pub enum EventLogVariant {
-    NftMint(Vec<NftMintLog>),
-    NftTransfer(Vec<NftTransferLog>),
+pub struct Event {
+    pub organiser: AccountId,
+    pub event_passes: Vec<TokenId>,
+    // pub event_metadata: EventMetadata     Will be included in Future version of contract
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct EventLog {
-    pub standard: String,
-    pub version: String,
-
-    // `flatten` to not have "event": {<EventLogVariant>} in the JSON, just have the contents of {<EventLogVariant>}.
-    #[serde(flatten)]
-    pub event: EventLogVariant,
+pub struct TokenInfo {
+    pub token_id: TokenId,
+    pub token_metadata: TokenMetadata,
+    pub token_dependency_by_id: Vec<TokenId>,
+    pub event_dependency_by_id: Vec<EventId>,
 }
 
-impl fmt::Display for EventLog {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "EVENT_JSON:{}",
-            &serde_json::to_string(self).map_err(|_| fmt::Error)?
-        ))
-    }
-}
+#[near_bindgen]
+impl Contract {
+    #[payable]
+    pub fn organise_event(&mut self, event_id: EventId, tokens: Vec<TokenInfo>) {
+        let initial_storage = env::storage_usage();
 
-#[derive(Serialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct NftMintLog {
-    pub owner_id: String,
-    pub token_id: String,
+        let mut event_passes: Vec<TokenId> = Vec::with_capacity(tokens.len());
+        let mut token_id: TokenId;
+        let mut token: Token;
+        let mut storage_required_for_token_ids = 0;
+        let event: Event;
+        let organiser = env::predecessor_account_id();
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memo: Option<String>,
-}
+        assert_valid_id(&event_id);
 
-impl NftMintLog {
-    pub fn emit(mint_logs: Vec<NftMintLog>) {
-        let event_log = EventLog {
-            standard: NFT_STANDARD_NAME.to_string(),
-            version: NFT_METADATA_SPEC.to_string(),
-            event: EventLogVariant::NftMint(mint_logs),
+        for token_info in tokens {
+            assert_valid_id(&token_info.token_id);
+
+            token_id = format!("{}.{}", event_id, token_info.token_id); // TokenId = EventId.TokenId
+
+            event_passes.push(token_id.clone());
+
+            token = Token {
+                token_id: token_id.clone(),
+                copies_minted: 0,
+                max_copies: token_info.token_metadata.copies.unwrap_or_else(|| 1),
+                expires_at: token_info.token_metadata.expires_at,
+                token_dependency_by_id: token_info.token_dependency_by_id,
+                event_dependency_by_id: token_info.event_dependency_by_id,
+                account_approval_info_per_owner: LookupMap::new(
+                    StorageKey::ApprovedAccountsPerToken {
+                        token_id_hash: hash_id(&token_id),
+                    }
+                    .try_to_vec()
+                    .unwrap(),
+                ),
+            };
+
+            require!(
+                self.tokens_by_id.insert(&token_id, &token).is_none(),
+                "Token Already exists"
+            );
+
+            self.token_metadata_by_id
+                .insert(&token_id, &token_info.token_metadata);
+
+            storage_required_for_token_ids +=
+                bytes_for_token_or_event_or_account_id(&token_id) * token.max_copies;
+        }
+
+        assert_valid_id(&event_id);
+
+        event = Event {
+            organiser,
+            event_passes,
         };
 
-        env::log(event_log.to_string().as_bytes());
-    }
-}
+        require!(
+            self.events_by_id.insert(&event_id, &event).is_none(),
+            "Event Already Exists"
+        );
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct NftTransferLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
+        let total_storage_required =
+            env::storage_usage() - initial_storage + storage_required_for_token_ids;
 
-    pub old_owner_id: String,
-    pub new_owner_id: String,
-    pub token_id: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memo: Option<String>,
-}
-
-impl NftTransferLog {
-    pub fn emit(transfer_logs: Vec<NftTransferLog>) {
-        let event_log = EventLog {
-            standard: NFT_STANDARD_NAME.to_string(),
-            version: NFT_METADATA_SPEC.to_string(),
-            event: EventLogVariant::NftTransfer(transfer_logs),
-        };
-
-        env::log(event_log.to_string().as_bytes());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::utils::test_utils::*;
-    use near_sdk::MockedBlockchain;
-    use near_sdk::{test_utils, testing_env};
-    #[test]
-    fn batch_mint_events() {
-        testing_env!(get_context(carol().to_string(), 0));
-
-        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_mint","data":[{"owner_id":"foundation.near","token_id":"aurora"},{"owner_id":"user1.near","token_id":"meme"}]}"#;
-
-        let mint_logs = vec![
-            NftMintLog {
-                owner_id: "foundation.near".to_owned(),
-                token_id: "aurora".to_string(),
-                memo: None,
-            },
-            NftMintLog {
-                owner_id: "user1.near".to_owned(),
-                token_id: "meme".to_string(),
-                memo: None,
-            },
-        ];
-        NftMintLog::emit(mint_logs);
-        let logs = &test_utils::get_logs()[0];
-        assert_eq!(expected, logs);
+        refund_deposit(total_storage_required);
     }
 
-    #[test]
-    fn transfer_event() {
-        testing_env!(get_context(carol().to_string(), 0));
+    #[payable]
+    pub fn event_register(&mut self, token_id: TokenId) {
+        let mut token = self
+            .tokens_by_id
+            .get(&token_id)
+            .unwrap_or_else(|| env::panic(b"Token does not exist"));
 
-        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_transfer","data":[{"authorized_id":"market.near","old_owner_id":"user1.near","new_owner_id":"user2.near","token_id":"token","memo":"Go Team!"}]}"#;
+        let account_id = env::predecessor_account_id();
 
-        let transfer_logs = vec![NftTransferLog {
-            authorized_id: Some("market.near".to_string()),
-            old_owner_id: "user1.near".to_string(),
-            new_owner_id: "user2.near".to_string(),
-            token_id: "token".to_string(),
-            memo: Some("Go Team!".to_owned()),
-        }];
+        require!(!is_token_expired(&token), "Token has expired");
 
-        NftTransferLog::emit(transfer_logs);
-        let log = &test_utils::get_logs()[0];
-        assert_eq!(expected, log);
+        assert_token_availability(&token);
+
+        require!(
+            self.internal_is_eligible_to_mint_token(&account_id, &token),
+            format!(
+                "{} doesn't satisfy all the dependencies for the token {}",
+                &account_id, &token_id
+            )
+        );
+
+        token.copies_minted += 1;
+
+        self.tokens_by_id.insert(&token_id, &token);
+
+        if self.tokens_per_owner.get(&account_id).is_none() {
+            let storage_used = bytes_for_token_or_event_or_account_id(&account_id);
+            refund_deposit(storage_used);
+        }
+
+        self.internal_add_token_to_owner(&account_id, &token_id);
+
+        let event_id: EventId = token_id.split_once(".").unwrap().0.to_string();
+
+        NftMintLog::emit(vec![NftMintLog {
+            owner_id: account_id.clone(),
+            token_id: token_id,
+            memo: Some(format!(
+                "{} has successfully registered for the event {}",
+                &account_id, &event_id
+            )),
+        }]);
     }
 }

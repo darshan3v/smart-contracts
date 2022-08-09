@@ -3,6 +3,12 @@ use crate::*;
 const GAS_FOR_NFT_APPROVE: Gas = 10_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
 
+#[derive(BorshDeserialize, BorshSerialize, Clone, Default)]
+pub struct ApprovalInfo {
+    pub approved_account_ids: HashMap<AccountId, u64>,
+    pub next_approval_id: u64,
+}
+
 pub trait NonFungibleTokenCore {
     //approve an account ID to transfer a token on your behalf, here it will be only for marketplaces
     fn nft_approve(&mut self, token_id: TokenId, account_id: AccountId, msg: Option<String>);
@@ -40,21 +46,43 @@ impl NonFungibleTokenCore for Contract {
     fn nft_approve(&mut self, token_id: TokenId, account_id: AccountId, msg: Option<String>) {
         assert_at_least_one_yocto();
 
-        let mut token = self.tokens_by_id.get(&token_id).expect("No token");
+        let (token_id, owner_id) = resolve_token_id(token_id);
 
-        require!(
-            &env::predecessor_account_id() == &token.owner_id,
-            "Predecessor must be the token owner."
-        );
+        let mut token = self.tokens_by_id.get(&token_id).expect("No token");
 
         require!(
             self.approved_marketplaces.contains(&account_id),
             "You cannot list on other marketplaces other than Catch Approved Marketplace"
         );
 
-        let approval_id: u64 = token.next_approval_id;
+        require!(
+            !is_token_expired(&token),
+            "Can't approve other account since Token has already expired"
+        );
 
-        let is_new_approval = token
+        let valid_token_owner = if let Some(token_set) = self.tokens_per_owner.get(&owner_id) {
+            token_set.contains(&token_id)
+        } else {
+            false
+        };
+
+        if !valid_token_owner {
+            env::panic(b"Only Token owner can approve other accounts");
+        }
+
+        require!(
+            &env::predecessor_account_id() == &owner_id,
+            "Predecessor must be the token owner."
+        );
+
+        let mut approval_info = token
+            .account_approval_info_per_owner
+            .get(&owner_id)
+            .unwrap_or_default();
+
+        let approval_id: u64 = approval_info.next_approval_id;
+
+        let is_new_approval = approval_info
             .approved_account_ids
             .insert(account_id.clone(), approval_id)
             .is_none();
@@ -67,7 +95,12 @@ impl NonFungibleTokenCore for Contract {
             0
         };
 
-        token.next_approval_id += 1;
+        approval_info.next_approval_id += 1;
+
+        token
+            .account_approval_info_per_owner
+            .insert(&owner_id, &approval_info);
+
         self.tokens_by_id.insert(&token_id, &token);
 
         refund_deposit(storage_used);
@@ -76,13 +109,13 @@ impl NonFungibleTokenCore for Contract {
         //account we're giving access to.
         if let Some(msg) = msg {
             ext_non_fungible_approval_receiver::nft_on_approve(
-                token_id,
-                token.owner_id,
+                build_full_token_id(token_id, owner_id.clone()),
+                owner_id,
                 approval_id,
                 msg,
-                &account_id,                                        // contract account we're calling
-                NO_DEPOSIT,                               // NEAR deposit we attach to the call
-                env::prepaid_gas() - GAS_FOR_NFT_APPROVE,     // GAS we're attaching
+                &account_id, // contract account we're calling
+                NO_DEPOSIT,  // NEAR deposit we attach to the call
+                env::prepaid_gas() - GAS_FOR_NFT_APPROVE, // GAS we're attaching
             )
             .as_return(); // Returning this promise
         }
@@ -95,9 +128,21 @@ impl NonFungibleTokenCore for Contract {
         approved_account_id: AccountId,
         approval_id: Option<u64>,
     ) -> bool {
-        let token = self.tokens_by_id.get(&token_id).expect("No token");
+        let (token_id, owner_id) = resolve_token_id(token_id);
 
-        let approval = token.approved_account_ids.get(&approved_account_id);
+        let token = self
+            .tokens_by_id
+            .get(&token_id)
+            .unwrap_or_else(|| env::panic(b"No token"));
+
+        let approved_account_ids =
+            if let Some(approval_info) = token.account_approval_info_per_owner.get(&owner_id) {
+                approval_info.approved_account_ids
+            } else {
+                return false;
+            };
+
+        let approval = approved_account_ids.get(&approved_account_id);
 
         //if there was some approval ID found for the account ID
         if let Some(approval) = approval {
@@ -119,20 +164,42 @@ impl NonFungibleTokenCore for Contract {
     #[payable]
     fn nft_revoke(&mut self, token_id: TokenId, account_id: AccountId) {
         assert_one_yocto();
+
+        let (token_id, owner_id) = resolve_token_id(token_id);
+
         let mut token = self.tokens_by_id.get(&token_id).expect("No token");
 
         let predecessor_account_id = env::predecessor_account_id();
 
+        let valid_token_owner = if let Some(token_set) = self.tokens_per_owner.get(&owner_id) {
+            token_set.contains(&token_id)
+        } else {
+            false
+        };
+
+        if !valid_token_owner {
+            env::panic(b"Only NFT owner can revoke access");
+        }
+
         require!(
-            &predecessor_account_id == &token.owner_id,
+            &predecessor_account_id == &owner_id,
             "Revoke can only be performed by owner of NFT"
         );
 
-        if token.approved_account_ids.remove(&account_id).is_some() {
-            refund_approved_account_ids_iter(predecessor_account_id, [account_id].iter());
+        if let Some(mut approval_info) = token.account_approval_info_per_owner.get(&owner_id) {
+            if approval_info
+                .approved_account_ids
+                .remove(&account_id)
+                .is_some()
+            {
+                refund_approved_account_ids_iter(predecessor_account_id, [account_id].iter());
 
-            //insert the token back into the tokens_by_id collection with the account_id removed from the approval list
-            self.tokens_by_id.insert(&token_id, &token);
+                token
+                    .account_approval_info_per_owner
+                    .insert(&owner_id, &approval_info);
+
+                self.tokens_by_id.insert(&token_id, &token);
+            }
         }
     }
 
@@ -141,18 +208,50 @@ impl NonFungibleTokenCore for Contract {
     fn nft_revoke_all(&mut self, token_id: TokenId) {
         assert_one_yocto();
 
+        let (token_id, owner_id) = resolve_token_id(token_id);
+
         let mut token = self.tokens_by_id.get(&token_id).expect("No token");
+
         let predecessor_account_id = env::predecessor_account_id();
 
+        let valid_token_owner = if let Some(token_set) = self.tokens_per_owner.get(&owner_id) {
+            token_set.contains(&token_id)
+        } else {
+            false
+        };
+
+        if !valid_token_owner {
+            env::panic(b"Only NFT owner can revoke access");
+        }
+
         require!(
-            &predecessor_account_id == &token.owner_id,
+            &predecessor_account_id == &owner_id,
             "Revoke can only be performed by owner of NFT"
         );
 
+        let (mut approved_account_ids, next_approval_id) =
+            if let Some(approval_info) = token.account_approval_info_per_owner.get(&owner_id) {
+                (
+                    approval_info.approved_account_ids,
+                    approval_info.next_approval_id,
+                )
+            } else {
+                return ();
+            };
+
         //only revoke if the approved account IDs for the token is not empty
-        if !token.approved_account_ids.is_empty() {
-            refund_approved_account_ids(predecessor_account_id, &token.approved_account_ids);
-            token.approved_account_ids.clear();
+        if !approved_account_ids.is_empty() {
+            refund_approved_account_ids(predecessor_account_id, &approved_account_ids);
+            approved_account_ids.clear();
+
+            token.account_approval_info_per_owner.insert(
+                &owner_id,
+                &ApprovalInfo {
+                    approved_account_ids,
+                    next_approval_id,
+                },
+            );
+
             self.tokens_by_id.insert(&token_id, &token);
         }
     }
@@ -169,7 +268,7 @@ impl Contract {
 
         let mut added = Vec::with_capacity(marketplaces.len());
 
-        for marketplace in marketplaces{
+        for marketplace in marketplaces {
             added.push(self.approved_marketplaces.insert(&marketplace.into()));
         }
 

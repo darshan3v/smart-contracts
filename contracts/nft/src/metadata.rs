@@ -15,7 +15,7 @@ pub struct NFTContractMetadata {
     pub name: String,
     pub symbol: String,
     pub icon: Option<String>,
-    pub base_uri: String, // Decentralized storage gateway , example ipfs
+    pub base_uri: String, // Decentralized storage gateway
     pub reference: String,
     pub reference_hash: Base64VecU8,
 }
@@ -27,8 +27,8 @@ pub struct TokenMetadata {
     pub description: Option<String>, // free-form description
     pub media: String,
     pub media_hash: Base64VecU8,
-    pub copies: Option<u64>, // number of copies of this set of metadata in existence when token was minted.
-    pub issued_at: Option<u64>, //Unix epoch in milliseconds
+    pub copies: Option<u64>, // max number of copies of this set of metadata that can be minted.
+    pub issued_at: Option<u64>, // Unix epoch in milliseconds
     pub expires_at: Option<u64>,
     pub starts_at: Option<u64>,
     pub updated_at: Option<u64>,
@@ -39,11 +39,13 @@ pub struct TokenMetadata {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Token {
-    pub owner_id: AccountId,
-    //list of approved account IDs that have access to transfer the token, AcoountId -> Approval Id
-    pub approved_account_ids: HashMap<AccountId, u64>,
-    pub next_approval_id: u64,
-    pub royalty: HashMap<AccountId, u32>, // 100% -> 10_000
+    pub token_id: TokenId,
+    pub copies_minted: u64,
+    pub max_copies: u64,
+    pub expires_at: Option<u64>,
+    pub token_dependency_by_id: Vec<TokenId>,
+    pub event_dependency_by_id: Vec<EventId>,
+    pub account_approval_info_per_owner: LookupMap<AccountId, ApprovalInfo>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -53,7 +55,17 @@ pub struct JsonToken {
     pub owner_id: AccountId,
     pub metadata: TokenMetadata,
     pub approved_account_ids: HashMap<AccountId, u64>,
-    pub royalty: HashMap<AccountId, u32>,
+    pub token_dependency_by_id: Vec<TokenId>,
+    pub event_dependency_by_id: Vec<EventId>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct JsonTokenGeneral {
+    pub token_id: TokenId,
+    pub metadata: TokenMetadata,
+    pub token_dependency_by_id: Vec<TokenId>,
+    pub event_dependency_by_id: Vec<EventId>,
 }
 
 pub trait NonFungibleTokenMetadata {
