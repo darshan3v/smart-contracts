@@ -88,7 +88,7 @@ pub(crate) fn build_full_token_id(token_id: TokenId, owner_id: AccountId) -> Tok
 }
 
 // returns true if token has expired
-pub(crate) fn is_token_expired(token: &Token) -> bool {
+pub(crate) fn internal_is_token_expired(token: &Token) -> bool {
     if let Some(t) = token.expires_at {
         return t < env::block_timestamp();
     } else {
@@ -154,5 +154,59 @@ pub mod test_utils {
 
     pub fn create_contract() -> Contract {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod test_utility_fn {
+    use super::*;
+    use crate::utils::test_utils::*;
+    use near_sdk::testing_env;
+    use near_sdk::MockedBlockchain;
+
+    #[test]
+    #[should_panic(expected = "Invalid TokenId / EventId")]
+    fn panic_assert_valid_id() {
+        testing_env!(get_context(carol().to_string(), 0));
+
+        let id = String::from("eventid.tokenid");
+        assert_valid_id(&id);
+    }
+
+    #[test]
+    fn success_assert_valid_id() {
+        testing_env!(get_context(carol().to_string(), 0));
+
+        let id = String::from("Event_id 1 Token_id 2 - Owner_id");
+        assert_valid_id(&id);
+    }
+
+    #[test]
+    fn success_resolve_token_id() {
+        testing_env!(get_context(carol().to_string(), 0));
+
+        let token_id = String::from("event_id.token_id.owner_id");
+        let expected_output = (String::from("event_id.token_id"), String::from("owner_id"));
+        assert_eq!(expected_output, resolve_token_id(token_id));
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid TokenId")]
+    fn panic_resolve_token_id() {
+        testing_env!(get_context(carol().to_string(), 0));
+
+        let token_id = String::from("event_id_token_id");
+        resolve_token_id(token_id);
+    }
+
+    #[test]
+    fn success_build_full_token_id() {
+        testing_env!(get_context(carol().to_string(), 0));
+
+        let token_id = String::from("event_id.token_id");
+        let owner_id = String::from("owner_id");
+
+        let full_token_id = String::from("event_id.token_id.owner_id");
+        assert_eq!(full_token_id, build_full_token_id(token_id, owner_id));
     }
 }

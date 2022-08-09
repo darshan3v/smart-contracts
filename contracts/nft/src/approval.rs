@@ -56,7 +56,7 @@ impl NonFungibleTokenCore for Contract {
         );
 
         require!(
-            !is_token_expired(&token),
+            !internal_is_token_expired(&token),
             "Can't approve other account since Token has already expired"
         );
 

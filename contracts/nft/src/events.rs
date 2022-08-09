@@ -96,7 +96,7 @@ impl Contract {
 
         let account_id = env::predecessor_account_id();
 
-        require!(!is_token_expired(&token), "Token has expired");
+        require!(!internal_is_token_expired(&token), "Token has expired");
 
         assert_token_availability(&token);
 

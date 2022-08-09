@@ -27,16 +27,18 @@ use near_sdk::{
 };
 
 use std::collections::HashMap;
+use std::mem::size_of;
 
 pub use crate::approval::*;
 pub use crate::events::*;
 pub use crate::indexing::*;
 use crate::internal::*;
+pub use view::*;
 pub use crate::metadata::*;
-pub use crate::mint::*;
+pub use crate::view::*;
 pub use crate::nft_core::NonFungibleTokenCore;
 use crate::utils::{
-    assert_token_availability, assert_valid_id, build_full_token_id, is_token_expired,
+    assert_token_availability, assert_valid_id, build_full_token_id, internal_is_token_expired,
     resolve_token_id,
 };
 
@@ -46,7 +48,7 @@ mod events;
 mod indexing;
 mod internal;
 mod metadata;
-mod mint;
+mod view;
 mod nft_core;
 mod utils;
 

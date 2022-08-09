@@ -1,11 +1,4 @@
-use crate::{utils::is_token_expired, *};
-use near_sdk::CryptoHash;
-use std::mem::size_of;
-
-//convert the royalty percentage and amount to pay into a payout (U128)
-pub(crate) fn royalty_to_payout(royalty_percentage: u32, amount_to_pay: Balance) -> U128 {
-    U128(royalty_percentage as u128 * amount_to_pay / 10_000u128)
-}
+use crate::*;
 
 //calculate how many bytes the account ID is taking up
 pub(crate) fn bytes_for_approved_account_id(account_id: &AccountId) -> u64 {
@@ -138,7 +131,7 @@ impl Contract {
             .unwrap_or_else(|| env::panic(b"No token"));
 
         require!(
-            !is_token_expired(&token),
+            !internal_is_token_expired(&token),
             "Token Can't be transferred Since it has already expired"
         );
 
