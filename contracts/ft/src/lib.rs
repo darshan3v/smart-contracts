@@ -6,7 +6,6 @@
  * lib.rs is the main entry point.
  * core_impl.rs implements NEP-141 standard
  * storage_impl.rs implements NEP-145 standard for allocating storage per account
- * catch_game.rs implements Objectuve and Reward Functionality for users
  * ft_metadata.rs implements NEP-148 standard for providing token-specific metadata.
  * events.rs extends NEP-297 for better indexing
  * internal.rs contains internal methods for fungible token core.
@@ -20,19 +19,15 @@ mod resolver;
 mod storage_impl;
 mod utils;
 
-mod catch_game;
-
-pub use crate::catch_game::CatchObjectives;
 pub use crate::core_impl::{FungibleToken, FungibleTokenCore};
 pub use crate::events::{FtBurnLog, FtMintLog, FtTransferLog};
 pub use crate::ft_metadata::FungibleTokenMetadata;
 pub use crate::receiver::ext_fungible_token_receiver;
 pub use crate::resolver::{ext_self, FungibleTokenResolver};
 pub use crate::storage_impl::StorageManager;
-use crate::utils::is_valid_username;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap, Vector};
+use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58PublicKey, Base64VecU8, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -63,9 +58,6 @@ pub struct Contract {
     //// Fungible Token
     pub token: FungibleToken,
 
-    /// In Game Objectives
-    pub catch_objectives: CatchObjectives,
-
     /// The storage size in bytes for one account.
     pub account_storage_usage: StorageUsage,
 
@@ -92,15 +84,12 @@ impl Contract {
             total_supply: total_supply.into(),
         };
 
-        let catch_objectives = CatchObjectives::default();
-
         let ft_metadata =
             LazyOption::new(StorageKey::Metadata.try_to_vec().unwrap(), Some(&metadata));
 
         let mut this = Self {
             owner_id: owner_id.clone(),
             token,
-            catch_objectives,
             account_storage_usage: 0,
             ft_metadata,
         };
@@ -183,9 +172,9 @@ impl Contract {
     ) {
         self.assert_owner();
 
-        let username: String = username.into();
+        // Add a Gas Check
 
-        require!(is_valid_username(&username), "Invalid Username");
+        let username: String = username.into();
 
         let subaccount = AccountId::from(format!("{}.{}", username, env::current_account_id()));
 
