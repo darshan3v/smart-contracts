@@ -3,7 +3,7 @@ use crate::*;
 #[macro_export]
 macro_rules! require {
     ( $a:expr, $b:expr ) => {
-   & &    if !$a {
+       if !$a {
             near_sdk::env::panic($b.as_bytes());
         }
     };
@@ -75,9 +75,9 @@ pub(crate) fn assert_valid_id(id: &str) {
 
 // Resolve token_id of form event_id.token_id.owner_id to Full TokenId and OwnerId
 pub(crate) fn resolve_token_id(token_id: TokenId) -> (TokenId, AccountId) {
-    let (event_id, token_id_and_owner_id) = token_id.split_once(".").unwrap_or_else(|| env::panic(b"Invalid Token"));
+    let (event_id, token_id_and_owner_id) = token_id.split_once(".").unwrap_or_else(|| env::panic(b"Invalid TokenId"));
 
-    let (token_id,owner_id) = token_id_and_owner_id.split_once(".").unwrap_or_else(|| env::panic(b"Invalid Token"));
+    let (token_id,owner_id) = token_id_and_owner_id.split_once(".").unwrap_or_else(|| env::panic(b"Invalid TokenId"));
     
     let token_id = format!("{}.{}",event_id,token_id);
 
@@ -187,8 +187,8 @@ mod test_utility_fn {
     fn success_resolve_token_id() {
         testing_env!(get_context(carol().to_string(), 0));
 
-        let token_id = String::from("event_id.token_id.owner_id");
-        let expected_output = (String::from("event_id.token_id"), String::from("owner_id"));
+        let token_id = String::from("event_id.token_id.owner.near");
+        let expected_output = (String::from("event_id.token_id"), String::from("owner.near"));
         assert_eq!(expected_output, resolve_token_id(token_id));
     }
 
