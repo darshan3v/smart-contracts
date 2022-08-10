@@ -33,14 +33,14 @@ pub use crate::approval::*;
 pub use crate::events::*;
 pub use crate::indexing::*;
 use crate::internal::*;
-pub use view::*;
 pub use crate::metadata::*;
-pub use crate::view::*;
 pub use crate::nft_core::NonFungibleTokenCore;
 use crate::utils::{
     assert_token_availability, assert_valid_id, build_full_token_id, internal_is_token_expired,
     resolve_token_id,
 };
+pub use crate::view::*;
+pub use view::*;
 
 mod approval;
 mod enumeration;
@@ -48,9 +48,9 @@ mod events;
 mod indexing;
 mod internal;
 mod metadata;
-mod view;
 mod nft_core;
 mod utils;
+mod view;
 
 const CATCH_MARKETPLACE_CONTRACT: &str = "marketplace.catchlabs.near";
 
@@ -138,7 +138,7 @@ impl Contract {
                 spec: "nft-1.0.0".to_string(),
                 name: "Catch".to_string(),
                 symbol: "CATCH".to_string(),
-                icon: None,
+                icon: Some("data:image/svg+xml;base64,PHN2ZyBpZD0iQ2FwYV8xIiBkYXRhLW5hbWU9IkNhcGEgMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTA3OC41NSAxMDgwIj48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6Izc4NzFmZjt9PC9zdHlsZT48L2RlZnM+PHBhdGggZD0iTTczMSwzNDcuNzJINDI2LjU3YTc4Ljg4LDc4Ljg4LDAsMCwwLTc5LDc5LjA3VjY1My4yNGE3OC44Niw3OC44NiwwLDAsMCw3OSw3OUg3MzFWNjQ5SDQzMC4zMlY0MzEuMDVINzMxWiIvPjxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTY2Miw0ODFhNTksNTksMCwwLDAtNTksNTloMGE1OSw1OSwwLDAsMCw1OSw1OWg1LjYzYTU5LDU5LDAsMCwwLDU5LTU5aDBhNTksNTksMCwwLDAtNTktNTlaIi8+PC9zdmc+".to_string()),
                 base_uri: "ipfs".to_string(),
                 reference: "ipfs://example.com/hash".to_string(),
                 reference_hash: Base64VecU8::from([5_u8; 32].to_vec()),
