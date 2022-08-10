@@ -3,7 +3,7 @@ use crate::*;
 #[macro_export]
 macro_rules! require {
     ( $a:expr, $b:expr ) => {
-        if !$a {
+   & &    if !$a {
             near_sdk::env::panic($b.as_bytes());
         }
     };
@@ -75,11 +75,13 @@ pub(crate) fn assert_valid_id(id: &str) {
 
 // Resolve token_id of form event_id.token_id.owner_id to Full TokenId and OwnerId
 pub(crate) fn resolve_token_id(token_id: TokenId) -> (TokenId, AccountId) {
-    let (token_id, owner_id) = token_id
-        .rsplit_once(".")
-        .unwrap_or_else(|| env::panic(b"Invalid TokenId"));
+    let (event_id, token_id_and_owner_id) = token_id.split_once(".").unwrap_or_else(|| env::panic(b"Invalid Token"));
 
-    return (token_id.to_string(), owner_id.to_string());
+    let (token_id,owner_id) = token_id_and_owner_id.split_once(".").unwrap_or_else(|| env::panic(b"Invalid Token"));
+    
+    let token_id = format!("{}.{}",event_id,token_id);
+
+    return (token_id, owner_id.to_string());
 }
 
 // Build token_id of form event_id.token_id.owner_id from TokenId and OwnerId
