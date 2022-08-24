@@ -28,7 +28,7 @@ pub use crate::storage_impl::StorageManager;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::{Base58PublicKey, Base64VecU8, ValidAccountId, U128};
+use near_sdk::json_types::{Base64VecU8, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_one_yocto, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas,
@@ -38,16 +38,10 @@ use near_sdk::{
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
 
-const BASE_STORAGE_COST: Balance = 4_000_000_000_000_000_000_000;
-
 #[derive(BorshSerialize)]
 pub enum StorageKey {
     Accounts,
     Metadata,
-    Objective,
-    ObjectiveStats,
-    ObjectiveMetadata,     // Lazy Option
-    ObjectiveMetadataList, // Vector
 }
 
 #[near_bindgen]
@@ -162,31 +156,6 @@ impl Contract {
         self.token.ft_balance_of(account_id.into())
     }
 
-    /// Create Sub Accounts for user and registers them with ft contract, if already registered leaves it unchanged
-    /// [Doing it based on assumption for Optimisation reasons]
-    /// Also this assumes that there will be enough Near for account creation and storage in the contract, this can be ensured and even panic won't cause any issues [Reason: Optimisation]
-    pub fn create_user_account(
-        &mut self,
-        username: ValidAccountId,
-        player_public_key: Base58PublicKey,
-    ) {
-        self.assert_owner();
-
-        // Add a Gas Check
-
-        let username: String = username.into();
-
-        let subaccount = AccountId::from(format!("{}.{}", username, env::current_account_id()));
-
-        if !self.token.accounts.contains_key(&subaccount) {
-            self.token.accounts.insert(&subaccount, &0);
-        }
-
-        Promise::new(subaccount.clone())
-            .create_account()
-            .add_full_access_key(player_public_key.into())
-            .transfer(BASE_STORAGE_COST);
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -250,17 +219,5 @@ mod ft_core_tests {
         let mut contract = create_contract();
         let amount = U128::from(100_000_000);
         contract.ft_transfer(carol(), amount, None);
-    }
-
-    #[test]
-    fn test_create_user_account() {
-        testing_env!(get_context(dex().to_string(), ONE_YOCTO));
-
-        let username = ValidAccountId::try_from("xyzusername").unwrap();
-        let player_public_key =
-            Base58PublicKey::try_from("3tysLvy7KGoE8pznUgXvSHa4vYyGvrDZFcT8jgb8PEQ6").unwrap();
-
-        let mut contract = create_contract();
-        contract.create_user_account(username, player_public_key);
     }
 }
