@@ -11,6 +11,7 @@ pub trait NonFungibleTokenCore {
     );
 
     //transfers an NFT to a receiver ID (if eligible) and returns Payout Object
+    //need to take max_len_payout as argument for compatibility purpose
     fn nft_transfer_payout(
         &mut self,
         receiver_id: AccountId,
@@ -18,6 +19,7 @@ pub trait NonFungibleTokenCore {
         approval_id: Option<u64>,
         balance: U128,
         memo: Option<String>,
+		max_len_payout: u32,
     ) -> Payout;
 
     //get information about the NFT token passed in
@@ -53,6 +55,7 @@ impl NonFungibleTokenCore for Contract {
         approval_id: Option<u64>,
         balance: U128,
         memo: Option<String>,
+		max_len_payout: u32,
     ) -> Payout {
         self.nft_transfer(receiver_id, token_id.clone(), approval_id, memo);
 

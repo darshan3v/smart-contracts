@@ -54,6 +54,8 @@ mod view;
 
 const CATCH_MARKETPLACE_CONTRACT: &str = "marketplace.catchlabs.near";
 
+const CATCH_MARKETPLACE_CONTRACT_LOCAL_NET: &str = "marketplace.catchlabs.test.near";
+
 const CATCH_MARKETPLACE_CONTRACT_TESTNET: &str = "marketplace.catchlabs.testnet";
 
 #[derive(BorshSerialize)]
@@ -122,7 +124,7 @@ impl Contract {
             ),
         };
 
-        let catch_marketplace = AccountId::from(CATCH_MARKETPLACE_CONTRACT_TESTNET);
+        let catch_marketplace = AccountId::from(CATCH_MARKETPLACE_CONTRACT_LOCAL_NET);
 
         this.approved_marketplaces.insert(&catch_marketplace);
 
