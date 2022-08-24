@@ -7,7 +7,7 @@ macro_rules! require {
             near_sdk::env::panic($b.as_bytes());
         }
     };
-} // Player account_id format = username.catchlabs.near
+}
 
 impl Contract {
     /// Assert that Predecessor A/c is the Owner of the Contract
