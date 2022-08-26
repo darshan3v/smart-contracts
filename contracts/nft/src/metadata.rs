@@ -1,5 +1,6 @@
 use crate::*;
 
+/// TokenId = EventId.TokenId
 pub type TokenId = String;
 
 #[derive(Serialize, Deserialize)]

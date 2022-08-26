@@ -19,7 +19,7 @@ pub trait NonFungibleTokenCore {
         approval_id: Option<u64>,
         balance: U128,
         memo: Option<String>,
-		max_len_payout: u32,
+        max_len_payout: u32,
     ) -> Payout;
 
     //get information about the NFT token passed in
@@ -55,7 +55,7 @@ impl NonFungibleTokenCore for Contract {
         approval_id: Option<u64>,
         balance: U128,
         memo: Option<String>,
-		max_len_payout: u32,
+        max_len_payout: u32,
     ) -> Payout {
         self.nft_transfer(receiver_id, token_id.clone(), approval_id, memo);
 
