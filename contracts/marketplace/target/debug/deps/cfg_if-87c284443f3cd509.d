@@ -1,0 +1,5 @@
+/home/work/Projects/near_projects/catch/smart-contracts/contracts/marketplace/target/debug/deps/cfg_if-87c284443f3cd509.rmeta: /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/cfg-if-1.0.0/src/lib.rs
+
+/home/work/Projects/near_projects/catch/smart-contracts/contracts/marketplace/target/debug/deps/cfg_if-87c284443f3cd509.d: /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/cfg-if-1.0.0/src/lib.rs
+
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/cfg-if-1.0.0/src/lib.rs:

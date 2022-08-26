@@ -1,0 +1,15 @@
+/home/work/Projects/near_projects/catch/smart-contracts/contracts/marketplace/target/debug/deps/blake2-87098209910d9793.rmeta: /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/lib.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/as_bytes.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/consts.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simd_opt.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdint.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdop.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdty.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2b.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2s.rs
+
+/home/work/Projects/near_projects/catch/smart-contracts/contracts/marketplace/target/debug/deps/blake2-87098209910d9793.d: /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/lib.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/as_bytes.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/consts.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simd_opt.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdint.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdop.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdty.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2b.rs /home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2s.rs
+
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/lib.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/as_bytes.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/consts.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simd_opt.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdint.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdop.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/simd/simdty.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2b.rs:
+/home/work/.cargo/registry/src/github.com-1ecc6299db9ec823/blake2-0.9.2/src/blake2s.rs:
