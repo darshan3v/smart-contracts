@@ -4,7 +4,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_one_yocto, env, ext_contract, near_bindgen, require, AccountId, Balance,
-    BorshStorageKey, CryptoHash, Gas, PanicOnDefault, Promise,
+    BorshStorageKey, CryptoHash, Gas, PanicOnDefault, Promise
 };
 use std::collections::HashMap;
 
@@ -101,6 +101,19 @@ impl Contract {
         let near_contract_id = AccountId::new_unchecked("near".to_string());
         this.approved_ft_tokens.insert(&near_contract_id);
         this
+    }
+
+    pub fn add_ft_token_ids(&mut self, ft_token_ids: Vec<FungibleTokenId>) -> Vec<bool> {
+        
+        require!(env::predecessor_account_id() == self.owner_id,"Only Owner can approve ft_token_id");
+
+        let mut added = vec![];
+
+        for ft_token_id in ft_token_ids {
+            added.push(self.approved_ft_tokens.insert(&ft_token_id));
+        }
+        
+        added
     }
 
     //Allows users to deposit storage. This is to cover the cost of storing sale objects on the contract
