@@ -107,9 +107,9 @@ impl NonFungibleTokenCore for Contract {
 
         let (event_id,_) = token_id.split_once(".").unwrap();
 
-        // msg should be ft_token_contract_id price_in_ft_token
-        // in new msg event_id will also be appended by the nft contract itself
-        let msg = msg.map(|s| format!("{} {}",s,event_id));
+        // // msg should be ft_token_contract_id price_in_ft_token
+        // // in new msg event_id will also be appended by the nft contract itself
+        // let msg = msg.map(|s| format!("{} {}",s,event_id));
 
         //if some message was passed into the function, we initiate a cross contract call on the
         //account we're giving access to.
