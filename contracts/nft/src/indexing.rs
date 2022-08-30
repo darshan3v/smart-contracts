@@ -41,7 +41,7 @@ impl fmt::Display for EventLog {
 #[serde(crate = "near_sdk::serde")]
 pub struct NftMintLog {
     pub owner_id: String,
-    pub token_id: String,
+    pub token_id: Vec<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memo: Option<String>,
@@ -67,7 +67,7 @@ pub struct NftTransferLog {
 
     pub old_owner_id: String,
     pub new_owner_id: String,
-    pub token_id: String,
+    pub token_id: Vec<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memo: Option<String>,
@@ -95,17 +95,17 @@ mod tests {
     fn batch_mint_events() {
         testing_env!(get_context(carol().to_string(), 0));
 
-        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_mint","data":[{"owner_id":"foundation.near","token_id":"aurora"},{"owner_id":"user1.near","token_id":"meme"}]}"#;
+        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_mint","data":[{"owner_id":"foundation.near","token_id":["aurora"]},{"owner_id":"user1.near","token_id":["meme"]}]}"#;
 
         let mint_logs = vec![
             NftMintLog {
                 owner_id: "foundation.near".to_owned(),
-                token_id: "aurora".to_string(),
+                token_id: vec!["aurora".to_string()],
                 memo: None,
             },
             NftMintLog {
                 owner_id: "user1.near".to_owned(),
-                token_id: "meme".to_string(),
+                token_id: vec!["meme".to_string()],
                 memo: None,
             },
         ];
@@ -118,13 +118,13 @@ mod tests {
     fn transfer_event() {
         testing_env!(get_context(carol().to_string(), 0));
 
-        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_transfer","data":[{"authorized_id":"market.near","old_owner_id":"user1.near","new_owner_id":"user2.near","token_id":"token","memo":"Go Team!"}]}"#;
+        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_transfer","data":[{"authorized_id":"market.near","old_owner_id":"user1.near","new_owner_id":"user2.near","token_id":["token"],"memo":"Go Team!"}]}"#;
 
         let transfer_logs = vec![NftTransferLog {
             authorized_id: Some("market.near".to_string()),
             old_owner_id: "user1.near".to_string(),
             new_owner_id: "user2.near".to_string(),
-            token_id: "token".to_string(),
+            token_id: vec!["token".to_string()],
             memo: Some("Go Team!".to_owned()),
         }];
 

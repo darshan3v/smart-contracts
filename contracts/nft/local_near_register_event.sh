@@ -15,4 +15,4 @@ local_near call contract.test.near event_register '{"token_id":"CATCH-CON new.si
 local_near call contract.test.near event_register '{"token_id":"CATCH-CON new.bronze_medal"}' --accountId vivek.test.near --deposit 1
 local_near call contract.test.near event_register '{"token_id":"CATCH-CON2 new.trophy"}' --accountId vivek.test.near --deposit 1
 
-local_near call contract.test.near event_register '{"token_id":"CATHC-CON-FINAL new.winner"}' --accountId vivek.test.near --deposit 1
+local_near call contract.test.near event_register '{"token_id":"CATCH-CON-FINAL new.winner"}' --accountId vivek.test.near --deposit 1

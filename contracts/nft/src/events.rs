@@ -88,13 +88,13 @@ impl Contract {
     }
 
     #[payable]
-    pub fn event_register(&mut self, token_id: TokenId) {
+    pub fn nft_event_register(&mut self,receiver_id: AccountId,token_id: TokenId) {
         let mut token = self
             .tokens_by_id
             .get(&token_id)
             .unwrap_or_else(|| env::panic(b"Token does not exist"));
 
-        let account_id = env::predecessor_account_id();
+        let account_id = receiver_id;
 
         require!(!internal_is_token_expired(&token), "Token has expired");
 
@@ -123,11 +123,13 @@ impl Contract {
 
         NftMintLog::emit(vec![NftMintLog {
             owner_id: account_id.clone(),
-            token_id: token_id,
+            token_id: vec![token_id],
             memo: Some(format!(
                 "{} has successfully registered for the event {}",
                 &account_id, &event_id
             )),
         }]);
+
+        todo!(); // Refund User if payed extra
     }
 }

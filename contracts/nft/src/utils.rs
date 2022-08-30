@@ -96,7 +96,11 @@ pub(crate) fn build_full_token_id(token_id: TokenId, owner_id: AccountId) -> Tok
 // returns true if token has expired
 pub(crate) fn internal_is_token_expired(token: &Token) -> bool {
     if let Some(t) = token.expires_at {
-        return t < env::block_timestamp();
+        if let Some(t) = t.checked_mul(1_000_000){          // Multiply by 1_000_000 to convert milli to nano seconds
+            return  t < env::block_timestamp();
+        }else{
+            env::panic(b"Time Stamp Overflow, Invalid ");
+        }
     } else {
         return false;
     }

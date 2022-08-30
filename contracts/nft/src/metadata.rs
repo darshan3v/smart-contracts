@@ -30,7 +30,7 @@ pub struct TokenMetadata {
     pub media_hash: Base64VecU8,
     pub copies: Option<u64>, // max number of copies of this set of metadata that can be minted.
     pub issued_at: Option<u64>, // Unix epoch in milliseconds
-    pub expires_at: Option<u64>,
+    pub expires_at: Option<u64>, // Unix epoch in millisecondss
     pub starts_at: Option<u64>,
     pub updated_at: Option<u64>,
     pub extra: Option<String>, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
