@@ -88,7 +88,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn nft_event_register(&mut self,receiver_id: AccountId,token_id: TokenId) {
+    pub fn nft_event_register(&mut self, receiver_id: AccountId, token_id: TokenId) {
         let mut token = self
             .tokens_by_id
             .get(&token_id)
